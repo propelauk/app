@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Propela Admin Login</title>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: system-ui; max-width: 400px; margin: 100px auto; padding: 20px; }
+    input, button { width: 100%; padding: 12px; margin: 8px 0; box-sizing: border-box; }
+    button { background: #6366f1; color: white; border: none; cursor: pointer; border-radius: 6px; }
+    button:hover { background: #4f46e5; }
+    #token { word-break: break-all; background: #f3f4f6; padding: 12px; border-radius: 6px; font-size: 12px; }
+    .success { color: green; }
+    .error { color: red; }
+    #loading { color: #6366f1; }
+  </style>
+</head>
+<body>
+  <h2>🔐 Propela Admin Login</h2>
+  <p>Sign in to get your admin JWT token</p>
+  
+  <input type="email" id="email" placeholder="Email" value="profmendel@gmail.com">
+  <input type="password" id="password" placeholder="Password">
+  <button onclick="signIn()">Sign In</button>
+  
+  <div id="result"></div>
+  <div id="token"></div>
+
+  <script>
+    console.log('Page loaded');
+    
+    // Check if Supabase loaded
+    if (typeof window.supabase === 'undefined') {
+      document.getElementById('result').innerHTML = '<p class="error">❌ Supabase library failed to load. Try opening in a different browser.</p>';
+    }
+
+    const supabaseClient = window.supabase ? window.supabase.createClient(
+      'https://fcyxaqfyerejgretzrab.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjeXhhcWZ5ZXJlamdyZXR6cmFiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxNTc2MzksImV4cCI6MjA4NTczMzYzOX0.JKtftjuaxsr6JrXkI5QjC5CQtiRJT2cStJepdqEtHXQ'
+    ) : null;
+
+    async function signIn() {
+      console.log('Sign in clicked');
+      document.getElementById('result').innerHTML = '<p id="loading">⏳ Signing in...</p>';
+      
+      if (!supabaseClient) {
+        document.getElementById('result').innerHTML = '<p class="error">❌ Supabase not loaded</p>';
+        return;
+      }
+
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      
+      console.log('Attempting sign in for:', email);
+      
+      try {
+        const { data, error } = await supabaseClient.auth.signInWithPassword({
+          email,
+          password
+        });
+
+        console.log('Response:', data, error);
+
+        if (error) {
+          document.getElementById('result').innerHTML = `<p class="error">❌ ${error.message}</p>`;
+          return;
+        }
+
+        document.getElementById('result').innerHTML = `<p class="success">✅ Signed in as ${data.user.email}</p><p><strong>Your User ID:</strong> ${data.user.id}</p><p><strong>Copy this token and paste it in the admin dashboard:</strong></p>`;
+        document.getElementById('token').innerText = data.session.access_token;
+      } catch (err) {
+        console.error('Error:', err);
+        document.getElementById('result').innerHTML = `<p class="error">❌ Error: ${err.message}</p>`;
+      }
+    }
+  </script>
+</body>
+</html>
