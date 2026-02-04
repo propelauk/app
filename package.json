@@ -10,7 +10,7 @@
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
     "build:expo": "npx expo export --platform web",
-    "build:admin": "cd admin && npm run build",
+    "build:admin": "cd admin && npm install && npm run build",
     "build:all": "npm run build:expo && npm run build:admin"
   },
   "dependencies": {
