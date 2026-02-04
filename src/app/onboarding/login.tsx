@@ -1,8 +1,9 @@
-import { View, Text, TextInput, Pressable, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, TextInput, Pressable, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useOnboardingStore } from '@/lib/state/onboarding-store';
+import { signInWithPin } from '@/lib/supabase';
 import { Mail, Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react-native';
 import Animated, {
   FadeInUp,
@@ -14,16 +15,16 @@ import { cn } from '@/lib/cn';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const storedEmail = useOnboardingStore((s) => s.email);
-  const storedPin = useOnboardingStore((s) => s.pin);
   const completeOnboarding = useOnboardingStore((s) => s.completeOnboarding);
+  const setEmail = useOnboardingStore((s) => s.setEmail);
 
-  const [email, setEmail] = useState('');
+  const [email, setEmailInput] = useState('');
   const [pin, setPin] = useState('');
   const [showPin, setShowPin] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [pinFocused, setPinFocused] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const buttonScale = useSharedValue(1);
 
@@ -31,19 +32,26 @@ export default function LoginScreen() {
     transform: [{ scale: buttonScale.value }],
   }));
 
-  const handleLogin = () => {
-    // Simple local validation (in production, this would check against backend)
-    if (email.toLowerCase() === storedEmail.toLowerCase() && pin === storedPin) {
+  const handleLogin = async () => {
+    setError('');
+    setLoading(true);
+
+    try {
+      await signInWithPin(email, pin);
+      // Save email to store
+      setEmail(email);
       completeOnboarding();
       router.replace('/(tabs)');
-    } else {
-      setError('Invalid email or PIN. Please try again.');
+    } catch (err: any) {
+      setError(err.message || 'Invalid email or PIN. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleForgotPin = () => {
     // In production, this would trigger a PIN reset flow
-    setError('PIN reset is not available in demo mode.');
+    setError('PIN reset coming soon. Please contact support.');
   };
 
   const isValid = email.trim().length > 0 && pin.length === 4;
@@ -96,7 +104,7 @@ export default function LoginScreen() {
                   <TextInput
                     value={email}
                     onChangeText={(text) => {
-                      setEmail(text);
+                      setEmailInput(text);
                       setError('');
                     }}
                     onFocus={() => setEmailFocused(true)}
@@ -108,6 +116,7 @@ export default function LoginScreen() {
                     autoCapitalize="none"
                     autoCorrect={false}
                     autoComplete="email"
+                    editable={!loading}
                   />
                 </View>
               </View>
@@ -139,8 +148,9 @@ export default function LoginScreen() {
                     keyboardType="number-pad"
                     maxLength={4}
                     secureTextEntry={!showPin}
+                    editable={!loading}
                   />
-                  <Pressable onPress={() => setShowPin(!showPin)}>
+                  <Pressable onPress={() => setShowPin(!showPin)} disabled={loading}>
                     {showPin ? (
                       <EyeOff size={20} color="#737373" />
                     ) : (
@@ -171,7 +181,7 @@ export default function LoginScreen() {
             <Animated.View entering={FadeInUp.duration(500).delay(400)}>
               <Pressable
                 onPress={handleLogin}
-                disabled={!isValid}
+                disabled={!isValid || loading}
                 onPressIn={() => {
                   buttonScale.value = withSpring(0.97);
                 }}
@@ -182,18 +192,22 @@ export default function LoginScreen() {
                 <Animated.View
                   style={animatedButtonStyle}
                   className={cn(
-                    'py-4 rounded-2xl items-center',
-                    isValid ? 'bg-teal-500' : 'bg-neutral-700'
+                    'py-4 rounded-2xl items-center flex-row justify-center',
+                    isValid && !loading ? 'bg-teal-500' : 'bg-neutral-700'
                   )}
                 >
-                  <Text
-                    className={cn(
-                      'text-lg font-semibold',
-                      isValid ? 'text-neutral-900' : 'text-neutral-400'
-                    )}
-                  >
-                    Sign In
-                  </Text>
+                  {loading ? (
+                    <ActivityIndicator size="small" color="#171717" />
+                  ) : (
+                    <Text
+                      className={cn(
+                        'text-lg font-semibold',
+                        isValid ? 'text-neutral-900' : 'text-neutral-400'
+                      )}
+                    >
+                      Sign In
+                    </Text>
+                  )}
                 </Animated.View>
               </Pressable>
             </Animated.View>
@@ -202,6 +216,7 @@ export default function LoginScreen() {
               <Pressable
                 onPress={() => router.push('/onboarding/step1')}
                 className="py-4 items-center mt-2"
+                disabled={loading}
               >
                 <Text className="text-neutral-400 text-base">
                   Don't have an account?{' '}
